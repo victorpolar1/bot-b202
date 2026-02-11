@@ -1,11 +1,14 @@
+import asyncio
 import requests
 from bs4 import BeautifulSoup
-import time
 from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
+import os
+import time
 
 # ===== CONFIGURACION =====
-TOKEN = "8379416814:AAHInv5f2gbwoNVoJ6SkVOBgkrtKtb2sAp4"
-CANAL = "@MonitorB202bot"
+TOKEN = os.environ.get("8379416814:AAHInv5f2gbwoNVoJ6SkVOBgkrtKtb2sAp4")      # reemplaza en Railway con tu token
+CANAL = os.environ.get("@MonitorB202bot")      # reemplaza en Railway con tu canal (@TuCanal)
+
 URL = "https://sgonorte.bomberosperu.gob.pe/24horas/?criterio="
 
 # Unidades que activan alerta
@@ -15,66 +18,71 @@ UNIDADES_B202 = [
 ]
 
 bot = Bot(token=TOKEN)
-
 ultimo_parte = None
 
-# ===== FUNCION PRINCIPAL =====
-def revisar_emergencias():
-    global ultimo_parte
+# ===== FUNCIONES =====
 
-    response = requests.get(URL)
-    soup = BeautifulSoup(response.text, "html.parser")
+async def enviar_telegram(mensaje, botones):
+    """Envía mensaje al canal de forma asíncrona"""
+    await bot.send_message(chat_id=CANAL, text=mensaje, reply_markup=botones)
 
-    filas = soup.find_all("tr")
-
-    for fila in filas:
-        texto = fila.get_text(" ", strip=True)
-
-        # Verifica si contiene alguna unidad B202
-        if any(u in texto for u in UNIDADES_B202):
-
-            # Intentar extraer datos (ajustable si cambia la web)
-            datos = texto.split()
-
+def extraer_coordenadas(texto):
+    """Busca coordenadas en el texto"""
+    lat = lon = None
+    partes = texto.split()
+    for palabra in partes:
+        if "(" in palabra and "," in palabra and ")" in palabra:
             try:
-                nro_parte = datos[0]
+                lat, lon = palabra.replace("(", "").replace(")", "").split(",")
+                break
             except:
                 continue
+    return lat, lon
 
-            # Evitar repetidos
-            if nro_parte == ultimo_parte:
-                return
+async def revisar_emergencias():
+    global ultimo_parte
+    try:
+        response = requests.get(URL)
+        soup = BeautifulSoup(response.text, "html.parser")
+        filas = soup.find_all("tr")
 
-            ultimo_parte = nro_parte
+        for fila in filas:
+            texto = fila.get_text(" ", strip=True)
 
-            # Extraer coordenadas
-            lat = None
-            lon = None
-            for palabra in datos:
-                if "," in palabra and "-" in palabra:
-                    try:
-                        lat, lon = palabra.replace("(", "").replace(")", "").split(",")
-                        break
-                    except:
-                        pass
+            # Verifica si contiene alguna unidad B202
+            if any(u in texto for u in UNIDADES_B202):
+                datos = texto.split()
+                try:
+                    nro_parte = datos[0]
+                except:
+                    continue
 
-            # ===== LINKS =====
-            if lat and lon:
-                google = f"https://www.google.com/maps/search/?api=1&query={lat},{lon}"
-                waze = f"https://waze.com/ul?ll={lat},{lon}&navigate=yes"
-                apple = f"http://maps.apple.com/?ll={lat},{lon}"
-                tg = f"https://t.me/share/url?url={lat},{lon}"
-            else:
-                google = waze = apple = tg = URL
+                # Evitar duplicados
+                if nro_parte == ultimo_parte:
+                    return
+                ultimo_parte = nro_parte
 
-            botones = InlineKeyboardMarkup([
-                [InlineKeyboardButton("Google Maps", url=google)],
-                [InlineKeyboardButton("Waze", url=waze)],
-                [InlineKeyboardButton("Apple Maps", url=apple)],
-                [InlineKeyboardButton("Abrir en Telegram", url=tg)],
-            ])
+                # Extraer coordenadas
+                lat, lon = extraer_coordenadas(texto)
 
-            mensaje = f"""🔥 ¡Nueva Emergencia para B-202! 🔥
+                # Crear links
+                if lat and lon:
+                    google = f"https://www.google.com/maps/search/?api=1&query={lat},{lon}"
+                    waze = f"https://waze.com/ul?ll={lat},{lon}&navigate=yes"
+                    apple = f"http://maps.apple.com/?ll={lat},{lon}"
+                    tg = f"https://t.me/share/url?url={lat},{lon}"
+                else:
+                    google = waze = apple = tg = URL
+
+                botones = InlineKeyboardMarkup([
+                    [InlineKeyboardButton("Google Maps", url=google)],
+                    [InlineKeyboardButton("Waze", url=waze)],
+                    [InlineKeyboardButton("Apple Maps", url=apple)],
+                    [InlineKeyboardButton("Abrir en Telegram", url=tg)],
+                ])
+
+                # Formato de mensaje
+                mensaje = f"""🔥 ¡Nueva Emergencia para B-202! 🔥
 
 📋 Nro Parte: {nro_parte}
 
@@ -82,17 +90,21 @@ def revisar_emergencias():
 🛡️ Mantente seguro.
 """
 
-            bot.send_message(chat_id=CANAL, text=mensaje, reply_markup=botones)
+                # Enviar mensaje asíncrono
+                await enviar_telegram(mensaje, botones)
+                print("Publicado:", nro_parte)
+                return
 
-            print("Publicado:", nro_parte)
-            return
-
-
-# ===== LOOP INFINITO =====
-while True:
-    try:
-        revisar_emergencias()
     except Exception as e:
         print("Error:", e)
 
-    time.sleep(5)
+# ===== LOOP PRINCIPAL =====
+async def main_loop():
+    while True:
+        await revisar_emergencias()
+        await asyncio.sleep(5)  # revisa cada 5 segundos
+
+# ===== EJECUTAR BOT =====
+if __name__ == "__main__":
+    asyncio.run(main_loop())
+
