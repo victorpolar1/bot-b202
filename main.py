@@ -82,12 +82,35 @@ async def revisar_emergencias():
                 ])
 
                 # Formato de mensaje
-                mensaje = f"""🔥 ¡Nueva Emergencia para B-202! 🔥
+                mensaje = f"""
+🔥 ¡Nueva Emergencia en B-202! 🔥
 
-📋 Nro Parte: {nro_parte}
+🚨 Resumen: {tipo} en {direccion} ({coordenadas})
+
+──────────────────
+
+📋 Detalles de la Emergencia:
+
+🔢 Nro Parte: {nro_parte}
+
+🏷️ Tipo: {tipo}
+
+⏰ Hora: {hora}
+
+📍 Dirección: {direccion}
+
+📊 Estado: {estado}
+
+🚒 Máquinas: 
+{maquinas_formateadas}
+
+──────────────────
 
 ℹ️ Información oficial en: Bomberos Perú
 🛡️ Mantente seguro.
+
+──────────────────
+🗺️ ABRIR UBICACIÓN EN:
 """
 
                 # Enviar mensaje asíncrono
@@ -107,6 +130,7 @@ async def main_loop():
 # ===== EJECUTAR BOT =====
 if __name__ == "__main__":
     asyncio.run(main_loop())
+
 
 
 
