@@ -6,8 +6,8 @@ import os
 import time
 
 # ===== CONFIGURACION =====
-TOKEN = os.environ.get("8379416814:AAHInv5f2gbwoNVoJ6SkVOBgkrtKtb2sAp4")      # reemplaza en Railway con tu token
-CANAL = os.environ.get("@MonitorB202bot")      # reemplaza en Railway con tu canal (@TuCanal)
+TOKEN = os.environ.get(TOKEN)      # reemplaza en Railway con tu token
+CANAL = os.environ.get(CANAL)      # reemplaza en Railway con tu canal (@TuCanal)
 
 URL = "https://sgonorte.bomberosperu.gob.pe/24horas/?criterio="
 
@@ -107,4 +107,5 @@ async def main_loop():
 # ===== EJECUTAR BOT =====
 if __name__ == "__main__":
     asyncio.run(main_loop())
+
 
